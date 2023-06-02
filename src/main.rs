@@ -1,25 +1,38 @@
-#![allow(unused)]
-
+mod evaluator;
 mod lexer;
 mod parser;
 
-fn main() {
-    let program = r#"\x.(x (x x))"#;
-    // let program = r#"(\f.(f \x.x) \s.(s s))"#;
+use std::io::Write;
 
-    let tokens = match lexer::tokenize(program) {
-        Ok(t) => t,
-        Err(s) => {
-            println!("{}", s);
-            std::process::exit(1);
-        }
-    };
+use lexer::Lexer;
+use parser::Parser;
+
+fn run(source: &str) {
+    let tokens = Lexer::tokenize(source).unwrap();
     for token in &tokens {
         println!("{:?}", token);
     }
+    println!();
 
-    println!("-------------------------------");
+    let tree = match Parser::parse(tokens) {
+        Ok(t) => t,
+        Err(e) => {
+            println!("{}", e.message);
+            return;
+        }
+    };
+    println!("{:?}\n", tree);
 
-    let expr = parser::parse(tokens);
-    println!("{:?}", expr);
+    let result = evaluator::eval(tree);
+    println!("{}", result);
+}
+
+fn main() {
+    loop {
+        let mut source = String::new();
+        print!("> ");
+        std::io::stdout().flush().unwrap();
+        std::io::stdin().read_line(&mut source).unwrap();
+        run(&source);
+    }
 }

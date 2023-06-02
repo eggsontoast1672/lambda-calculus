@@ -1,15 +1,27 @@
-use std::string::FromUtf8Error;
-
 #[derive(Debug)]
 pub enum Token {
     Dot,
+    Eof,
     Lambda,
     Name(String),
     ParenLeft,
     ParenRight,
 }
 
-struct Lexer {
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Token::Dot => write!(f, "DOT"),
+            Token::Eof => write!(f, "EOF"),
+            Token::Lambda => write!(f, "LAMBDA"),
+            Token::Name(_) => write!(f, "NAME"),
+            Token::ParenLeft => write!(f, "PAREN_LEFT"),
+            Token::ParenRight => write!(f, "PAREN_RIGHT"),
+        }
+    }
+}
+
+pub struct Lexer {
     current: usize,
     source: Vec<u8>,
     start: usize,
@@ -48,6 +60,7 @@ impl Lexer {
                 }
             };
         }
+        self.tokens.push(Token::Eof);
         self.tokens
     }
 
@@ -70,8 +83,8 @@ impl Lexer {
             String::from_utf8(self.source[self.start..self.current].as_ref().to_owned()).unwrap(),
         ));
     }
-}
 
-pub fn tokenize(source: &str) -> Result<Vec<Token>, String> {
-    Ok(Lexer::new(source)?.get_tokens())
+    pub fn tokenize(source: &str) -> Result<Vec<Token>, String> {
+        Ok(Lexer::new(source)?.get_tokens())
+    }
 }
