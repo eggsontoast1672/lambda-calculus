@@ -4,16 +4,12 @@ mod parser;
 
 use std::io::Write;
 
+use evaluator::Evaluator;
 use lexer::Lexer;
 use parser::Parser;
 
 fn run(source: &str) {
     let tokens = Lexer::tokenize(source).unwrap();
-    for token in &tokens {
-        println!("{:?}", token);
-    }
-    println!();
-
     let tree = match Parser::parse(tokens) {
         Ok(t) => t,
         Err(e) => {
@@ -21,10 +17,7 @@ fn run(source: &str) {
             return;
         }
     };
-    println!("{:?}\n", tree);
-
-    let result = evaluator::eval(tree);
-    println!("{}", result);
+    println!("{}", Evaluator::eval(tree));
 }
 
 fn main() {
