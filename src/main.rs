@@ -1,5 +1,6 @@
 mod evaluator;
 mod lexer;
+mod new_lexer;
 mod parser;
 
 use std::io::Write;
