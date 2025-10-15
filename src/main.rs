@@ -1,13 +1,6 @@
-mod evaluator;
-mod lexer;
-mod new_lexer;
-mod parser;
-
 use std::io::Write;
 
-use evaluator::Evaluator;
-use lexer::Lexer;
-use parser::Parser;
+use lambda_calculus::{ast, eval, lexer::Lexer, parser::Parser};
 
 fn run(source: &str) {
     let tokens = Lexer::tokenize(source).unwrap();
@@ -18,7 +11,8 @@ fn run(source: &str) {
             return;
         }
     };
-    println!("{}", Evaluator::eval(tree));
+
+    println!("{}", eval::eval(tree));
 }
 
 fn main() {

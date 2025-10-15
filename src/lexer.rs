@@ -31,41 +31,51 @@ pub struct Lexer {
 impl Lexer {
     fn new(source: &str) -> Result<Self, String> {
         if !source.is_ascii() {
-            return Err(String::from("utf8 code is not supported"));
+            Err(String::from("utf8 code is not supported"))
+        } else {
+            Ok(Self {
+                source: source.as_bytes().to_owned(),
+                tokens: Vec::new(),
+                start: 0,
+                current: 0,
+            })
         }
-        Ok(Self {
-            source: source.as_bytes().to_owned(),
-            tokens: Vec::new(),
-            start: 0,
-            current: 0,
-        })
     }
 
     fn get_tokens(mut self) -> Vec<Token> {
-        while !self.is_at_end() {
-            let current = self.source[self.current];
-            self.start = self.current;
-            self.current += 1;
-            match current {
+        while let Some(b) = self.pop_byte() {
+            self.start = self.current - 1;
+
+            match b {
                 b'.' => self.tokens.push(Token::Dot),
                 b'\\' => self.tokens.push(Token::Lambda),
                 b'(' => self.tokens.push(Token::ParenLeft),
                 b')' => self.tokens.push(Token::ParenRight),
                 _ => {
-                    if Self::is_name_character(current) {
+                    if Self::is_name_character(b) {
                         self.push_name();
-                    } else if !current.is_ascii_whitespace() {
+                    } else if !b.is_ascii_whitespace() {
                         panic!("unrecognized character");
                     }
                 }
-            };
+            }
         }
+
         self.tokens.push(Token::Eof);
         self.tokens
     }
 
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len()
+    fn peek_byte(&self) -> Option<u8> {
+        self.source.get(self.current).copied()
+    }
+
+    fn pop_byte(&mut self) -> Option<u8> {
+        if let Some(b) = self.peek_byte() {
+            self.current += 1;
+            Some(b)
+        } else {
+            None
+        }
     }
 
     fn is_name_character(byte: u8) -> bool {
@@ -73,18 +83,20 @@ impl Lexer {
     }
 
     fn push_name(&mut self) {
-        while !self.is_at_end() && Self::is_name_character(self.source[self.current]) {
-            self.current += 1;
+        while let Some(b) = self.peek_byte()
+            && Self::is_name_character(b)
+        {
+            self.pop_byte();
         }
 
-        // By this point the name is guaranteed to be ascii, and is
-        // therefore valid UTF-8
-        self.tokens.push(Token::Name(
-            String::from_utf8(self.source[self.start..self.current].as_ref().to_owned()).unwrap(),
-        ));
+        // SAFETY: The constructor for the lexer guarantees that `self.source` contains ascii data,
+        // so any subsequence of bytes will also be valid ascii and therefore valid UTF8.
+        let name_bytes = self.source[self.start..self.current].to_owned();
+        let name = unsafe { String::from_utf8_unchecked(name_bytes) };
+        self.tokens.push(Token::Name(name));
     }
 
     pub fn tokenize(source: &str) -> Result<Vec<Token>, String> {
-        Ok(Lexer::new(source)?.get_tokens())
+        Lexer::new(source).map(|lexer| lexer.get_tokens())
     }
 }
