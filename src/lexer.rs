@@ -1,3 +1,5 @@
+use std::{iter::Peekable, str::Chars};
+
 #[derive(Debug)]
 pub enum Token {
     Dot,
@@ -21,39 +23,38 @@ impl std::fmt::Display for Token {
     }
 }
 
-pub struct Lexer {
-    current: usize,
-    source: Vec<u8>,
-    start: usize,
+/// Returns `true` if `c` is a character which can appear in a name, and `false` otherwise.
+fn is_name_character(c: char) -> bool {
+    c != '\\' && c != '.' && c != '(' && c != ')' && !c.is_whitespace()
+}
+
+/// The lambda calculus lexer.
+///
+/// This type combs through a stream of characters and generates a vector of tokens to be consumed
+/// by the parser.
+pub struct Lexer<'a> {
+    chars: Peekable<Chars<'a>>,
     tokens: Vec<Token>,
 }
 
-impl Lexer {
-    fn new(source: &str) -> Result<Self, String> {
-        if !source.is_ascii() {
-            Err(String::from("utf8 code is not supported"))
-        } else {
-            Ok(Self {
-                source: source.as_bytes().to_owned(),
-                tokens: Vec::new(),
-                start: 0,
-                current: 0,
-            })
+impl<'a> Lexer<'a> {
+    fn new(source: &'a str) -> Self {
+        Self {
+            chars: source.chars().peekable(),
+            tokens: Vec::new(),
         }
     }
 
     fn get_tokens(mut self) -> Vec<Token> {
-        while let Some(b) = self.pop_byte() {
-            self.start = self.current - 1;
-
+        while let Some(b) = self.pop_char() {
             match b {
-                b'.' => self.tokens.push(Token::Dot),
-                b'\\' => self.tokens.push(Token::Lambda),
-                b'(' => self.tokens.push(Token::ParenLeft),
-                b')' => self.tokens.push(Token::ParenRight),
+                '.' => self.tokens.push(Token::Dot),
+                '\\' => self.tokens.push(Token::Lambda),
+                '(' => self.tokens.push(Token::ParenLeft),
+                ')' => self.tokens.push(Token::ParenRight),
                 _ => {
-                    if Self::is_name_character(b) {
-                        self.push_name();
+                    if is_name_character(b) {
+                        self.push_name(b);
                     } else if !b.is_ascii_whitespace() {
                         panic!("unrecognized character");
                     }
@@ -65,38 +66,27 @@ impl Lexer {
         self.tokens
     }
 
-    fn peek_byte(&self) -> Option<u8> {
-        self.source.get(self.current).copied()
+    fn peek_char(&mut self) -> Option<char> {
+        self.chars.peek().copied()
     }
 
-    fn pop_byte(&mut self) -> Option<u8> {
-        if let Some(b) = self.peek_byte() {
-            self.current += 1;
-            Some(b)
-        } else {
-            None
-        }
+    fn pop_char(&mut self) -> Option<char> {
+        self.chars.next()
     }
 
-    fn is_name_character(byte: u8) -> bool {
-        byte.is_ascii_alphabetic()
-    }
-
-    fn push_name(&mut self) {
-        while let Some(b) = self.peek_byte()
-            && Self::is_name_character(b)
+    fn push_name(&mut self, first: char) {
+        let mut name2 = first.to_string();
+        while let Some(c) = self.peek_char()
+            && is_name_character(c)
         {
-            self.pop_byte();
+            self.pop_char();
+            name2.push(c);
         }
 
-        // SAFETY: The constructor for the lexer guarantees that `self.source` contains ascii data,
-        // so any subsequence of bytes will also be valid ascii and therefore valid UTF8.
-        let name_bytes = self.source[self.start..self.current].to_owned();
-        let name = unsafe { String::from_utf8_unchecked(name_bytes) };
-        self.tokens.push(Token::Name(name));
+        self.tokens.push(Token::Name(name2));
     }
 
-    pub fn tokenize(source: &str) -> Result<Vec<Token>, String> {
-        Lexer::new(source).map(|lexer| lexer.get_tokens())
+    pub fn tokenize(source: &str) -> Vec<Token> {
+        Lexer::new(source).get_tokens()
     }
 }

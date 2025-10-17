@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use lambda_calculus::{ast, eval, lexer::Lexer, parser::Parser};
+use lambda_calculus::{eval, lexer::Lexer, parser::Parser};
 
 fn run(source: &str) {
-    let tokens = Lexer::tokenize(source).unwrap();
+    let tokens = Lexer::tokenize(source);
     let tree = match Parser::parse(tokens) {
         Ok(t) => t,
         Err(e) => {
