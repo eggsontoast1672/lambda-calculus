@@ -1,0 +1,2 @@
+- The repl panics on EOF
+- Nested applications are not evaluated deeply

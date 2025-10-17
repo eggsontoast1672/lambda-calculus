@@ -1,16 +1,36 @@
+use std::{
+    error,
+    fmt::{self, Display, Formatter},
+};
+
 use crate::{ast::Expr, lexer::Token};
 
-pub struct ParserError {
-    pub message: String,
+#[derive(Debug)]
+pub enum PE {
+    UnexpectedToken,
 }
 
-impl ParserError {
-    fn new(message: &str) -> Self {
-        Self {
-            message: message.to_owned(),
+impl error::Error for PE {}
+
+impl Display for PE {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            PE::UnexpectedToken => write!(f, "unexpected token")
         }
     }
 }
+
+// pub struct ParserError {
+//     pub message: String,
+// }
+// 
+// impl ParserError {
+//     fn new(message: &str) -> Self {
+//         Self {
+//             message: message.to_owned(),
+//         }
+//     }
+// }
 
 pub struct Parser {
     current: usize,
@@ -41,10 +61,6 @@ impl Parser {
         Self { current: 0, tokens }
     }
 
-    fn is_done(&mut self) -> bool {
-        matches!(self.pop_token(), Token::Eof)
-    }
-
     /// Pop a token from the input stack and return it.
     ///
     /// # Panics
@@ -58,7 +74,7 @@ impl Parser {
         token
     }
 
-    pub fn parse(mut tokens: Vec<Token>) -> Result<Expr, ParserError> {
+    pub fn parse(mut tokens: Vec<Token>) -> Result<Expr, PE> {
         if !matches!(tokens.last(), Some(Token::Eof)) {
             tokens.push(Token::Eof);
         }
@@ -67,14 +83,13 @@ impl Parser {
         // token.
         let mut parser = unsafe { Self::new_unchecked(tokens) };
         let expr = parser.parse_expr();
-        if !parser.is_done() {
-            panic!("parser had more tokens");
+        match parser.pop_token() {
+            Token::Eof => expr,
+            _ => Err(PE::UnexpectedToken),
         }
-
-        expr
     }
 
-    fn parse_expr(&mut self) -> Result<Expr, ParserError> {
+    fn parse_expr(&mut self) -> Result<Expr, PE> {
         match self.pop_token() {
             Token::Lambda => self.parse_expr_function(),
             Token::Name(n) => {
@@ -82,42 +97,36 @@ impl Parser {
                 self.parse_expr_name(name)
             }
             Token::ParenLeft => self.parse_expr_application(),
-            token => Err(ParserError::new(&format!(
-                "expected one of LAMBDA, NAME, PAREN_LEFT, got {}",
-                token
-            ))),
+            _ => Err(PE::UnexpectedToken),
         }
     }
 
-    fn parse_expr_application(&mut self) -> Result<Expr, ParserError> {
+    fn parse_expr_application(&mut self) -> Result<Expr, PE> {
         let func_expr = self.parse_expr()?;
         let arg_expr = self.parse_expr()?;
         let token = self.pop_token();
         let Token::ParenRight = token else {
-            return Err(ParserError::new(&format!(
-                "expected PAREN_RIGHT, got {}",
-                token
-            )));
+            return Err(PE::UnexpectedToken);
         };
         Ok(Expr::Application(Box::new(func_expr), Box::new(arg_expr)))
     }
 
-    fn parse_expr_function(&mut self) -> Result<Expr, ParserError> {
+    fn parse_expr_function(&mut self) -> Result<Expr, PE> {
         let name = match self.pop_token() {
             Token::Name(n) => n.clone(),
-            t => return Err(ParserError::new(&format!("expected NAME, got {}", t))),
+            _ => return Err(PE::UnexpectedToken),
         };
 
         let token = self.pop_token();
         let Token::Dot = token else {
-            return Err(ParserError::new(&format!("expected DOT, got {}", token)));
+            return Err(PE::UnexpectedToken);
         };
 
         let body = self.parse_expr()?;
         Ok(Expr::Function(name, Box::new(body)))
     }
 
-    fn parse_expr_name(&self, name: String) -> Result<Expr, ParserError> {
+    fn parse_expr_name(&self, name: String) -> Result<Expr, PE> {
         Ok(Expr::Name(name))
     }
 }

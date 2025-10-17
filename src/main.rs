@@ -7,7 +7,7 @@ fn run(source: &str) {
     let tree = match Parser::parse(tokens) {
         Ok(t) => t,
         Err(e) => {
-            println!("{}", e.message);
+            println!("{}", e);
             return;
         }
     };
