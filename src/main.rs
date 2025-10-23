@@ -3,7 +3,7 @@ use std::{
     process,
 };
 
-use lambda_calculus::{eval, lexer::Lexer, parser::Parser};
+use lambda_calculus::lexer::Lexer;
 
 fn read_line(prompt: &str) -> io::Result<String> {
     print!("{}", prompt);
@@ -15,21 +15,25 @@ fn read_line(prompt: &str) -> io::Result<String> {
 }
 
 fn run(source: &str) {
-    let tokens = Lexer::tokenize(source);
-    let tree = match Parser::parse(tokens) {
-        Ok(t) => t,
-        Err(e) => {
-            println!("{}", e);
-            return;
-        }
-    };
+    let _tokens = Lexer::tokenize(source);
+    // let tree = match Parser::parse(tokens) {
+    //     Ok(t) => t,
+    //     Err(e) => {
+    //         println!("{}", e);
+    //         return;
+    //     }
+    // };
 
-    println!("{}", eval::eval(tree));
+    // println!("{}", eval::eval(tree));
 }
 
 fn main() {
     loop {
-        let source = read_line("> ").unwrap();
+        let Ok(source) = read_line("> ") else {
+            println!("An I/O error occurred");
+            continue;
+        };
+
         run(&source);
     }
 }

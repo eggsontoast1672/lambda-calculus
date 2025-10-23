@@ -1,24 +1,49 @@
-use std::{iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::CharIndices};
 
-#[derive(Debug)]
-pub enum Token {
+#[derive(PartialEq, Debug)]
+pub enum TokenKind<'a> {
     Dot,
     Eof,
     Lambda,
-    Name(String),
+    Name(&'a str),
     ParenLeft,
     ParenRight,
 }
 
-impl std::fmt::Display for Token {
+#[derive(PartialEq, Debug)]
+pub struct Span {
+    pub line: usize,
+    pub column: usize,
+}
+
+impl Span {
+    pub const fn new(line: usize, column: usize) -> Self {
+        Self { line, column }
+    }
+}
+
+#[derive(PartialEq, Debug)]
+pub struct Token<'a> {
+    pub kind: TokenKind<'a>,
+    pub span: Span,
+}
+
+impl<'a> Token<'a> {
+    /// Create a new token from kind and location information.
+    pub const fn new(kind: TokenKind<'a>, span: Span) -> Self {
+        Self { kind, span }
+    }
+}
+
+impl std::fmt::Display for TokenKind<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Dot => write!(f, "DOT"),
-            Token::Eof => write!(f, "EOF"),
-            Token::Lambda => write!(f, "LAMBDA"),
-            Token::Name(_) => write!(f, "NAME"),
-            Token::ParenLeft => write!(f, "PAREN_LEFT"),
-            Token::ParenRight => write!(f, "PAREN_RIGHT"),
+            TokenKind::Dot => write!(f, "DOT"),
+            TokenKind::Eof => write!(f, "EOF"),
+            TokenKind::Lambda => write!(f, "LAMBDA"),
+            TokenKind::Name(_) => write!(f, "NAME"),
+            TokenKind::ParenLeft => write!(f, "PAREN_LEFT"),
+            TokenKind::ParenRight => write!(f, "PAREN_RIGHT"),
         }
     }
 }
@@ -33,60 +58,90 @@ fn is_name_character(c: char) -> bool {
 /// This type combs through a stream of characters and generates a vector of tokens to be consumed
 /// by the parser.
 pub struct Lexer<'a> {
-    chars: Peekable<Chars<'a>>,
-    tokens: Vec<Token>,
+    source: &'a str,
+    chars: Peekable<CharIndices<'a>>,
+    line: usize,
+    column: usize,
+    dispensed_eof: bool,
 }
 
 impl<'a> Lexer<'a> {
-    fn new(source: &'a str) -> Self {
+    pub fn new(source: &'a str) -> Self {
         Self {
-            chars: source.chars().peekable(),
-            tokens: Vec::new(),
+            source,
+            chars: source.char_indices().peekable(),
+            line: 1,
+            column: 1,
+            dispensed_eof: false,
         }
     }
 
-    fn get_tokens(mut self) -> Vec<Token> {
-        while let Some(b) = self.pop_char() {
-            match b {
-                '.' => self.tokens.push(Token::Dot),
-                '\\' => self.tokens.push(Token::Lambda),
-                '(' => self.tokens.push(Token::ParenLeft),
-                ')' => self.tokens.push(Token::ParenRight),
-                _ => {
-                    if is_name_character(b) {
-                        self.push_name(b);
-                    } else if !b.is_ascii_whitespace() {
-                        panic!("unrecognized character");
-                    }
-                }
-            }
+    fn next_char(&mut self) -> Option<(usize, char)> {
+        let p @ (_, c) = self.chars.next()?;
+        if c == '\n' {
+            self.line += 1;
+            self.column = 1;
+        } else {
+            self.column += 1;
         }
-
-        self.tokens.push(Token::Eof);
-        self.tokens
+        Some(p)
     }
 
-    fn peek_char(&mut self) -> Option<char> {
-        self.chars.peek().copied()
+    pub fn tokenize(source: &str) -> Vec<Token<'_>> {
+        Lexer::new(source).collect()
     }
 
-    fn pop_char(&mut self) -> Option<char> {
-        self.chars.next()
-    }
-
-    fn push_name(&mut self, first: char) {
-        let mut name2 = first.to_string();
-        while let Some(c) = self.peek_char()
-            && is_name_character(c)
+    /// Skip past all leading whitespace.
+    ///
+    /// This function sets the state of the lexer to point to the first non-whitespace character in
+    /// the stream. It ensures that the line and column information are updated appropriately.
+    fn skip_whitespace(&mut self) {
+        while let Some((_, c)) = self.chars.peek()
+            && c.is_whitespace()
         {
-            self.pop_char();
-            name2.push(c);
+            self.next_char();
         }
-
-        self.tokens.push(Token::Name(name2));
     }
+}
 
-    pub fn tokenize(source: &str) -> Vec<Token> {
-        Lexer::new(source).get_tokens()
+impl<'a> Iterator for Lexer<'a> {
+    type Item = Token<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.skip_whitespace();
+
+        let span = Span::new(self.line, self.column);
+        let Some((start_byte, c)) = self.next_char() else {
+            return if self.dispensed_eof {
+                None
+            } else {
+                self.dispensed_eof = true;
+                Some(Token {
+                    kind: TokenKind::Eof,
+                    span,
+                })
+            };
+        };
+
+        let kind = match c {
+            '\\' => TokenKind::Lambda,
+            '(' => TokenKind::ParenLeft,
+            ')' => TokenKind::ParenRight,
+            '.' => TokenKind::Dot,
+            _ if is_name_character(c) => {
+                let mut end_byte = start_byte + c.len_utf8();
+                while let Some(&(i, c2)) = self.chars.peek()
+                    && is_name_character(c2)
+                {
+                    end_byte = i + c2.len_utf8();
+                    self.next_char();
+                }
+
+                TokenKind::Name(&self.source[start_byte..end_byte])
+            }
+            _ => panic!("unexpected token {c}"),
+        };
+
+        Some(Token { kind, span })
     }
 }
