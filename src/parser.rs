@@ -1,4 +1,4 @@
-use crate::{ast::Expr, lexer::TokenKind};
+use crate::{ast::Expr, lexer::{Token, TokenKind}};
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -24,14 +24,24 @@ pub struct Parser<I> {
 
 impl<I> Parser<I> {
     /// Create a new parser.
-    fn new(tokens: I) -> Self {
+    pub const fn new(tokens: I) -> Self {
         Self { tokens }
+    }
+
+    /// Create a new parser from an iterable of tokens.
+    pub fn from_iterable<T>(tokens: T) -> Self
+    where
+        T: IntoIterator<IntoIter = I>,
+    {
+        Self {
+            tokens: tokens.into_iter(),
+        }
     }
 }
 
 impl<'a, I> Parser<I>
 where
-    I: Iterator<Item = TokenKind<'a>>,
+    I: Iterator<Item = Token<'a>>,
 {
     /// Pop a token from the input stack and return it.
     ///
@@ -40,22 +50,22 @@ where
     /// If the end of the token stream has been reached (past EOF), this function will panic. Since
     /// EOF should always be processed before the stream terminates, the end user should never
     /// observe this outcome.
-    fn pop_token(&mut self) -> TokenKind<'a> {
+    fn pop_token(&mut self) -> Token<'a> {
         self.tokens.next().unwrap()
     }
 
     pub fn parse(tokens: I) -> Result<Expr<'a>, ParseError> {
         let mut parser = Self::new(tokens);
         let expr = parser.parse_expr();
-        match parser.pop_token() {
+        match parser.pop_token().kind {
             TokenKind::Eof => expr,
             _ => Err(ParseError::UnexpectedToken),
         }
     }
 
     /// Parse and return the next expression in the stream.
-    fn parse_expr(&mut self) -> Result<Expr<'a>, ParseError> {
-        match self.pop_token() {
+    pub fn parse_expr(&mut self) -> Result<Expr<'a>, ParseError> {
+        match self.pop_token().kind {
             TokenKind::Lambda => self.parse_expr_function(),
             TokenKind::Name(n) => Ok(Expr::Name(n)),
             TokenKind::ParenLeft => self.parse_expr_application(),
@@ -64,25 +74,25 @@ where
     }
 
     fn parse_expr_function(&mut self) -> Result<Expr<'a>, ParseError> {
-        let name = match self.pop_token() {
-            TokenKind::Name(n) => (*n).to_owned(),
+        let name = match self.pop_token().kind {
+            TokenKind::Name(n) => n,
             _ => return Err(ParseError::UnexpectedToken),
         };
 
         let token = self.pop_token();
-        let TokenKind::Dot = token else {
+        let TokenKind::Dot = token.kind else {
             return Err(ParseError::UnexpectedToken);
         };
 
         let body = self.parse_expr()?;
-        Ok(Expr::Function(name.into(), Box::new(body)))
+        Ok(Expr::Function(name, Box::new(body)))
     }
-    
+
     fn parse_expr_application(&mut self) -> Result<Expr<'a>, ParseError> {
         let func_expr = self.parse_expr()?;
         let arg_expr = self.parse_expr()?;
         let token = self.pop_token();
-        let TokenKind::ParenRight = token else {
+        let TokenKind::ParenRight = token.kind else {
             return Err(ParseError::UnexpectedToken);
         };
         Ok(Expr::Application(Box::new(func_expr), Box::new(arg_expr)))

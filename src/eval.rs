@@ -40,7 +40,7 @@ fn eval_application<'a>(func_expr: Expr<'a>, arg_expr: Expr<'a>) -> Expr<'a> {
     }
 }
 
-fn eval_function(name: String, body: Expr) -> Expr {
+fn eval_function<'a>(name: &'a str, body: Expr<'a>) -> Expr<'a> {
     Expr::Function(name, Box::new(eval(body)))
 }
 

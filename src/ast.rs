@@ -1,7 +1,7 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Expr<'a> {
     Name(&'a str),
-    Function(String, Box<Expr<'a>>),
+    Function(&'a str, Box<Expr<'a>>),
     Application(Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
