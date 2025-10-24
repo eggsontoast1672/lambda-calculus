@@ -1,16 +1,16 @@
 #[derive(Clone, Debug)]
-pub enum Expr {
-    Application(Box<Expr>, Box<Expr>),
-    Function(String, Box<Expr>),
-    Name(String),
+pub enum Expr<'a> {
+    Name(&'a str),
+    Function(String, Box<Expr<'a>>),
+    Application(Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
-impl std::fmt::Display for Expr {
+impl std::fmt::Display for Expr<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Expr::Application(function, argument) => write!(f, "({} {})", function, argument),
-            Expr::Function(name, body) => write!(f, "\\{}.{}", name, body),
             Expr::Name(name) => write!(f, "{}", name),
+            Expr::Function(name, body) => write!(f, "\\{}.{}", name, body),
+            Expr::Application(function, argument) => write!(f, "({} {})", function, argument),
         }
     }
 }

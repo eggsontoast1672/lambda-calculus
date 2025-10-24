@@ -3,7 +3,7 @@ use crate::ast::Expr;
 /// Replace all occurrences of the name `from` in `expr` with `to`.
 ///
 /// Note that this function does not perform any evaluation. It simply makes the substitutions.
-fn beta_reduce(expr: Expr, from: &str, to: Expr) -> Expr {
+fn beta_reduce<'a>(expr: Expr<'a>, from: &str, to: Expr<'a>) -> Expr<'a> {
     match expr {
         Expr::Application(func_expr, arg_expr) => {
             let func_reduced = beta_reduce(*func_expr, from, to.clone());
@@ -29,7 +29,7 @@ pub fn eval(expr: Expr) -> Expr {
     }
 }
 
-fn eval_application(func_expr: Expr, arg_expr: Expr) -> Expr {
+fn eval_application<'a>(func_expr: Expr<'a>, arg_expr: Expr<'a>) -> Expr<'a> {
     match func_expr {
         Expr::Application(f, a) => {
             // Might need to wrap this in an eval
@@ -44,6 +44,6 @@ fn eval_function(name: String, body: Expr) -> Expr {
     Expr::Function(name, Box::new(eval(body)))
 }
 
-fn eval_name(name: String) -> Expr {
+fn eval_name(name: &str) -> Expr<'_> {
     Expr::Name(name)
 }
