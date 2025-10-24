@@ -11,8 +11,7 @@ fn test_one_name() {
         Token::new(TokenKind::Eof, Span::new(1, 6)),
     ];
 
-    let mut parser = Parser::from_iterable(tokens);
-    let ast = parser.parse_expr().unwrap();
+    let ast = Parser::parse(tokens).unwrap();
     let expected = Expr::Name("hello");
 
     assert_eq!(ast, expected);
@@ -28,8 +27,7 @@ fn test_one_function() {
         Token::new(TokenKind::Eof, Span::new(1, 5)),
     ];
 
-    let mut parser = Parser::from_iterable(tokens);
-    let ast = parser.parse_expr().unwrap();
+    let ast = Parser::parse(tokens).unwrap();
     let expected = Expr::Function("x", Box::new(Expr::Name("x")));
 
     assert_eq!(ast, expected);
@@ -48,8 +46,7 @@ fn test_nested_functions() {
         Token::new(TokenKind::Eof, Span::new(1, 8)),
     ];
 
-    let mut parser = Parser::from_iterable(tokens);
-    let ast = parser.parse_expr().unwrap();
+    let ast = Parser::parse(tokens).unwrap();
     let expected = Expr::Function(
         "x",
         Box::new(Expr::Function("y", Box::new(Expr::Name("x")))),
@@ -68,8 +65,7 @@ fn test_application() {
         Token::new(TokenKind::Eof, Span::new(1, 6)),
     ];
 
-    let mut parser = Parser::from_iterable(tokens);
-    let ast = parser.parse_expr().unwrap();
+    let ast = Parser::parse(tokens).unwrap();
     let expected = Expr::Application(Box::new(Expr::Name("x")), Box::new(Expr::Name("y")));
 
     assert_eq!(ast, expected);
@@ -84,8 +80,7 @@ fn test_unfinished_application() {
         Token::new(TokenKind::Eof, Span::new(1, 5)),
     ];
 
-    let mut parser = Parser::from_iterable(tokens);
-    let err = parser.parse_expr().unwrap_err();
+    let err = Parser::parse(tokens).unwrap_err();
     match err {
         ParseError::UnexpectedToken(t) => {
             assert_eq!(t.kind, TokenKind::Eof);

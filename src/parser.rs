@@ -68,11 +68,10 @@ where
         T: IntoIterator<IntoIter = I>,
     {
         let mut parser = Self::from_iterable(tokens);
-        let expr = parser.parse_expr();
+        let expr = parser.parse_expr()?;
         let token = parser.pop_token();
-
         match token.kind {
-            TokenKind::Eof => expr,
+            TokenKind::Eof => Ok(expr),
             _ => Err(ParseError::UnexpectedToken(token)),
         }
     }
@@ -81,14 +80,14 @@ where
     pub fn parse_expr(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
         let token = self.pop_token();
         match token.kind {
-            TokenKind::Lambda => self.parse_expr_function(),
+            TokenKind::Lambda => self.parse_function(),
             TokenKind::Name(n) => Ok(Expr::Name(n)),
-            TokenKind::ParenLeft => self.parse_expr_application(),
+            TokenKind::ParenLeft => self.parse_application(),
             _ => Err(ParseError::UnexpectedToken(token)),
         }
     }
 
-    fn parse_expr_function(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+    fn parse_function(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
         let name = match self.pop_token() {
             Token {
                 kind: TokenKind::Name(n),
@@ -106,7 +105,7 @@ where
         Ok(Expr::Function(name, Box::new(body)))
     }
 
-    fn parse_expr_application(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+    fn parse_application(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
         let func_expr = self.parse_expr()?;
         let arg_expr = self.parse_expr()?;
         let token = self.pop_token();
