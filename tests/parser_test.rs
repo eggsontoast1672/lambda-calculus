@@ -1,7 +1,7 @@
 use lambda_calculus::{
     ast::Expr,
     lexer::{Span, Token, TokenKind},
-    parser::Parser,
+    parser::{ParseError, Parser},
 };
 
 #[test]
@@ -65,6 +65,7 @@ fn test_application() {
         Token::new(TokenKind::Name("x"), Span::new(1, 2)),
         Token::new(TokenKind::Name("y"), Span::new(1, 4)),
         Token::new(TokenKind::ParenRight, Span::new(1, 5)),
+        Token::new(TokenKind::Eof, Span::new(1, 6)),
     ];
 
     let mut parser = Parser::from_iterable(tokens);
@@ -72,4 +73,23 @@ fn test_application() {
     let expected = Expr::Application(Box::new(Expr::Name("x")), Box::new(Expr::Name("y")));
 
     assert_eq!(ast, expected);
+}
+
+#[test]
+fn test_unfinished_application() {
+    let tokens = [
+        Token::new(TokenKind::ParenLeft, Span::new(1, 1)),
+        Token::new(TokenKind::Name("x"), Span::new(1, 2)),
+        Token::new(TokenKind::Name("y"), Span::new(1, 4)),
+        Token::new(TokenKind::Eof, Span::new(1, 5)),
+    ];
+
+    let mut parser = Parser::from_iterable(tokens);
+    let err = parser.parse_expr().unwrap_err();
+    match err {
+        ParseError::UnexpectedToken(t) => {
+            assert_eq!(t.kind, TokenKind::Eof);
+            assert_eq!(t.span, Span::new(1, 5));
+        }
+    }
 }

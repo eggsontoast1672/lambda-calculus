@@ -1,16 +1,23 @@
-use crate::{ast::Expr, lexer::{Token, TokenKind}};
+use crate::{
+    ast::Expr,
+    lexer::{Token, TokenKind},
+};
 
 #[derive(Debug)]
-pub enum ParseError {
-    UnexpectedToken,
+pub enum ParseError<'a> {
+    UnexpectedToken(Token<'a>),
 }
 
-impl std::error::Error for ParseError {}
+impl std::error::Error for ParseError<'_> {}
 
-impl std::fmt::Display for ParseError {
+impl std::fmt::Display for ParseError<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::UnexpectedToken => write!(f, "unexpected token"),
+            Self::UnexpectedToken(t) => write!(
+                f,
+                "{}:{}: unexpected token '{}'",
+                t.span.line, t.span.column, t.kind
+            ),
         }
     }
 }
@@ -51,49 +58,60 @@ where
     /// EOF should always be processed before the stream terminates, the end user should never
     /// observe this outcome.
     fn pop_token(&mut self) -> Token<'a> {
-        self.tokens.next().unwrap()
+        self.tokens
+            .next()
+            .expect("this should never happen, was the token stream missing Eof?")
     }
 
-    pub fn parse(tokens: I) -> Result<Expr<'a>, ParseError> {
-        let mut parser = Self::new(tokens);
+    pub fn parse<T>(tokens: T) -> Result<Expr<'a>, ParseError<'a>>
+    where
+        T: IntoIterator<IntoIter = I>,
+    {
+        let mut parser = Self::from_iterable(tokens);
         let expr = parser.parse_expr();
-        match parser.pop_token().kind {
+        let token = parser.pop_token();
+
+        match token.kind {
             TokenKind::Eof => expr,
-            _ => Err(ParseError::UnexpectedToken),
+            _ => Err(ParseError::UnexpectedToken(token)),
         }
     }
 
     /// Parse and return the next expression in the stream.
-    pub fn parse_expr(&mut self) -> Result<Expr<'a>, ParseError> {
-        match self.pop_token().kind {
+    pub fn parse_expr(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+        let token = self.pop_token();
+        match token.kind {
             TokenKind::Lambda => self.parse_expr_function(),
             TokenKind::Name(n) => Ok(Expr::Name(n)),
             TokenKind::ParenLeft => self.parse_expr_application(),
-            _ => Err(ParseError::UnexpectedToken),
+            _ => Err(ParseError::UnexpectedToken(token)),
         }
     }
 
-    fn parse_expr_function(&mut self) -> Result<Expr<'a>, ParseError> {
-        let name = match self.pop_token().kind {
-            TokenKind::Name(n) => n,
-            _ => return Err(ParseError::UnexpectedToken),
+    fn parse_expr_function(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
+        let name = match self.pop_token() {
+            Token {
+                kind: TokenKind::Name(n),
+                ..
+            } => n,
+            t => return Err(ParseError::UnexpectedToken(t)),
         };
 
         let token = self.pop_token();
         let TokenKind::Dot = token.kind else {
-            return Err(ParseError::UnexpectedToken);
+            return Err(ParseError::UnexpectedToken(token));
         };
 
         let body = self.parse_expr()?;
         Ok(Expr::Function(name, Box::new(body)))
     }
 
-    fn parse_expr_application(&mut self) -> Result<Expr<'a>, ParseError> {
+    fn parse_expr_application(&mut self) -> Result<Expr<'a>, ParseError<'a>> {
         let func_expr = self.parse_expr()?;
         let arg_expr = self.parse_expr()?;
         let token = self.pop_token();
         let TokenKind::ParenRight = token.kind else {
-            return Err(ParseError::UnexpectedToken);
+            return Err(ParseError::UnexpectedToken(token));
         };
         Ok(Expr::Application(Box::new(func_expr), Box::new(arg_expr)))
     }

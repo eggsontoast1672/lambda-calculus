@@ -1,7 +1,7 @@
 use lambda_calculus::lexer::{Lexer, Span, Token, TokenKind};
 
 #[test]
-fn test_name_expression() {
+fn test_name() {
     let source = "<some-name-69420>";
     let tokens = Lexer::tokenize(source);
     let expected = vec![
@@ -13,7 +13,7 @@ fn test_name_expression() {
 }
 
 #[test]
-fn test_func_expression() {
+fn test_function() {
     let source = "\\x.x";
     let tokens = Lexer::tokenize(source);
     let expected = vec![
@@ -28,7 +28,7 @@ fn test_func_expression() {
 }
 
 #[test]
-fn test_call_expression() {
+fn test_application() {
     let source = "(x y)";
     let tokens = Lexer::tokenize(source);
     let expected = vec![
@@ -37,6 +37,20 @@ fn test_call_expression() {
         Token::new(TokenKind::Name("y"), Span::new(1, 4)),
         Token::new(TokenKind::ParenRight, Span::new(1, 5)),
         Token::new(TokenKind::Eof, Span::new(1, 6)),
+    ];
+
+    assert_eq!(tokens, expected);
+}
+
+#[test]
+fn test_unfinished_application() {
+    let source = "(x y";
+    let tokens = Lexer::tokenize(source);
+    let expected = vec![
+        Token::new(TokenKind::ParenLeft, Span::new(1, 1)),
+        Token::new(TokenKind::Name("x"), Span::new(1, 2)),
+        Token::new(TokenKind::Name("y"), Span::new(1, 4)),
+        Token::new(TokenKind::Eof, Span::new(1, 5)),
     ];
 
     assert_eq!(tokens, expected);

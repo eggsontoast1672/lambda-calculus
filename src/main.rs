@@ -3,28 +3,23 @@ use std::{
     process,
 };
 
-use lambda_calculus::lexer::Lexer;
+use lambda_calculus::{eval, lexer::Lexer, parser::Parser};
 
 fn read_line(prompt: &str) -> io::Result<String> {
     print!("{}", prompt);
     io::stdout().flush()?;
-    match io::stdin().lines().next() {
-        Some(line) => line,
-        None => process::exit(0),
-    }
+    io::stdin().lines().next().unwrap_or_else(|| {
+        println!();
+        process::exit(0);
+    })
 }
 
 fn run(source: &str) {
-    let _tokens = Lexer::tokenize(source);
-    // let tree = match Parser::parse(tokens) {
-    //     Ok(t) => t,
-    //     Err(e) => {
-    //         println!("{}", e);
-    //         return;
-    //     }
-    // };
-
-    // println!("{}", eval::eval(tree));
+    let tokens = Lexer::tokenize(source);
+    match Parser::parse(tokens) {
+        Ok(expr) => println!("{}", eval::eval(expr)),
+        Err(err) => println!("{}", err),
+    }
 }
 
 fn main() {

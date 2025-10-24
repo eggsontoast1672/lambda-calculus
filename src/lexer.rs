@@ -128,6 +128,7 @@ impl<'a> Iterator for Lexer<'a> {
             '(' => TokenKind::ParenLeft,
             ')' => TokenKind::ParenRight,
             '.' => TokenKind::Dot,
+
             _ if is_name_character(c) => {
                 let mut end_byte = start_byte + c.len_utf8();
                 while let Some(&(i, c2)) = self.chars.peek()
@@ -139,7 +140,11 @@ impl<'a> Iterator for Lexer<'a> {
 
                 TokenKind::Name(&self.source[start_byte..end_byte])
             }
-            _ => panic!("unexpected token {c}"),
+
+            // The idea is that any characters other than syntax and whitespace can be treated as
+            // part of an identifier, so theoretically there should not be any characters that the
+            // lexer won't accept.
+            _ => unreachable!(),
         };
 
         Some(Token { kind, span })
