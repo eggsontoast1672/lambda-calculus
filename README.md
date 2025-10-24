@@ -18,7 +18,22 @@ your shell to run the code.
 
 ### Quick Start Guide
 
-To do.
+This program is really not hard to use. When you execute it (see above), you
+will be thrown into an interactive prompt. You can type out Lambda Calculus
+expressions, they will be evaluated, and the result will be displayed
+underneath. The syntax is explained further down this document. For now, here
+are some examples to pique your interest:
+
+```
+> (\x.x identity)
+identity
+> ((\first.\second.first one) two)
+one
+> names-are-themselves
+names-are-themselves
+> \so-are.functions
+\so-are.functions
+```
 
 ### Language Syntax
 
@@ -65,8 +80,14 @@ To do.
 
 ## Goals
 
-To do.
+- Add support for assignments
+- Modernize language syntax
+- Create some kind of syntax highlighting plugin, maybe a treesitter parser
 
 ## License
 
-To do.
+This code is licensed under the GNU GPLv3. I typically license my code under
+MIT, but I have grown to apprecate the GPL. I like that it keeps my code away
+from the filthy hands of the writers of proprietary software. Anyway, do what
+you want with the software (except for including it in a closed source
+project).
